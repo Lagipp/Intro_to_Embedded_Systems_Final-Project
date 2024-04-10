@@ -73,6 +73,7 @@ int main(void)
 	SPCR |= (1 << SPR0);	// set SPI clock rate to 1 MHz
 	
 	int STATE = 1;         // start state machine in "alarm is armed" state
+	int TIMER = -1;
 	
 	
 	
@@ -85,50 +86,72 @@ int main(void)
 			case 1:		// "ALARM_ARMED"  /  default when the system is started
 			
 				if( /* motion sensor 1 */ )
+				{	
+					STATE = 2		/* goto "MOVEMENT_DETECTED" */
+					TIMER = 0;		/* start the timer */
+				}	
+				
+				
+			case 2:		// "MOVEMENT_DETECTED"  /  the sensor is triggered
+			
+				// NOTE: input password on master, send data to slave
+				// slave validates the password and sends the data back to master
+				// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
+			
+				while (TIMER < 10)
 				{
-					// case 2: "MOVEMENT_DETECTED"		// set STATE to 2, handle states in separate case function?
-					// timer start
-					// NOTE: input password on master, send data to slave
-					// slave validates the password and sends the data back to master
-					// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
-					
+					/* wait for password from slave */
+					/* use USART? */
+				
 					if ( /* correct password */)
 					{
 						// case 3: "ALARM_DISARMED"
-						// stop the timer!
-						// NOTE: both boards idle at this state
-						
-						//   TODO: maybe add rearm functionality here
+						// stop the timer?
 					}
-					
+				
 					else if ( /* wrong password */ )
 					{
-						// notify the user using LED? on slave's side?
-						
+						// notify the user using LED on slave's side?
 						// TODO: let user input again?
 					}
-					
+				
 					else if ( /* timer runs out */)
 					{
 						// case 4: "BUZZER_ON"
 						// send data to slave, turn buzzer on
-						
-						
-						// NOTE: ask for the correct password again
-						// -->  case 3: "ALARM_DISARMED"
 					}
-					
-					else
-					{
-						// print error message?
-						// NOTE: state machine has STATE 0 as FAULT
-					}
+				
+					TIMER += 1;		/* NOTE: has to be asynchronous? */
+				}
+			
+				
+			case 3:		// "ALARM_DISARMED"  /  the correct password was input
+	
+				// stop the timer
+				// the program is finished (unless rearm functionality is added)	
+			
+				break;
+			
+			
+			case 4:		// "BUZZER_ON"  /  start the buzzer when the 10 second timer ran out
+			
+				// send data to slave, turn buzzer on
+			
+				/* wait for password from slave */
+				
+				if ( /* correct password */)
+				{
+					// case 3: "ALARM_DISARMED"
+					// stop the timer?
 				}
 				
-				else	// motion sensor is idle
+				else if ( /* wrong password */ )
 				{
-					// do nothing?
-				}	
+					// notify the user using LED? on slave's side?
+					// TODO: let user input again?
+				}
+						
+
 		}
 	}
 }
