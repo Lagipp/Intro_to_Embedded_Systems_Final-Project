@@ -1,5 +1,8 @@
 /*
  * final_project_master.c
+ * 
+ *		BL40A1812 Introduction to Embedded Systems
+ *		final project - master side
  *
  * Created: 3.4.2024 12.24.39
  * Author : Miika Pynttäri
@@ -62,7 +65,7 @@ int main(void)
     stdout = &uart_output;
     stdin = &uart_input;
 	
-	// Set SS, MOSI, and SCK as outputs [ DDRx |= (1 << Pxn) ]
+	// Set SS, MOSI, and SCK as outputs		[  DDRx |= (1 << Pxn)  ]
 	DDRB |= (1 << PB0);		// SS
 	DDRB |= (1 << PB3);		// MOSI
 	DDRB |= (1 << PB1);		// SCK
@@ -79,7 +82,6 @@ int main(void)
 	
 	while(1)
 	{	
-		/* motion sensor detects movement (from 0 to 1), state "MOVEMENT DETECTED", 10 s timer starts */
 		
 		switch(STATE)
 		{
@@ -87,8 +89,8 @@ int main(void)
 			
 				if( /* motion sensor 1 */ )
 				{	
-					STATE = 2		/* goto "MOVEMENT_DETECTED" */
 					TIMER = 0;		/* start the timer */
+					STATE = 2		/* goto "MOVEMENT_DETECTED" */
 				}	
 				
 				
@@ -98,59 +100,58 @@ int main(void)
 				// slave validates the password and sends the data back to master
 				// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
 			
-				while (TIMER < 10)
+				while (TIMER < 100)
 				{
-					/* wait for password from slave */
-					/* use USART? */
+					// user inputs the password on the keypad
+						/* USART_Transmit password */
 				
-					if ( /* correct password */)
+					if ( /* correct password */)		// USART_Receive correctPassword
 					{
-						// case 3: "ALARM_DISARMED"
-						// stop the timer?
+						STATE = 3;		/* goto "ALARM_DISARMED" */
+						TIMER = -1000000;
 					}
 				
-					else if ( /* wrong password */ )
+					else if ( /* wrong password */ )	// USART_Receive wrongPassword
 					{
-						// notify the user using LED on slave's side?
-						// TODO: let user input again?
+						// notify the user using LED on slave's side?		/* when slave sends message, flash/turn on led on slave's side */
+						// let user input again
 					}
 				
-					else if ( /* timer runs out */)
+					else if ( TIMER > 10 )
 					{
-						// case 4: "BUZZER_ON"
+						STATE = 4		/* goto "BUZZER_ON" */
 						// send data to slave, turn buzzer on
+							/* USART_Transmit turnOnBuzzer */			// NOTE: this first before state change?
 					}
 				
-					TIMER += 1;		/* NOTE: has to be asynchronous? */
+					TIMER += 1;		/* NOTE: has to be asynchronous? how to do this? */
 				}
 			
 				
 			case 3:		// "ALARM_DISARMED"  /  the correct password was input
 	
-				// stop the timer
+				// stop the timer (?)
 				// the program is finished (unless rearm functionality is added)	
 			
-				break;
+				break;			// no exit function in C?
 			
 			
 			case 4:		// "BUZZER_ON"  /  start the buzzer when the 10 second timer ran out
-			
-				// send data to slave, turn buzzer on
-			
-				/* wait for password from slave */
+						/* basically the same as state 2 (movement detected) but without the timer */
+						
+						
+				/* WAIT FOR USER'S PASSWORD */
 				
-				if ( /* correct password */)
+				if ( /* correct password */)		/* USART_Receive correctPassword */
 				{
-					// case 3: "ALARM_DISARMED"
-					// stop the timer?
+					STATE = 3;		// goto "ALARM_DISARMED"
 				}
 				
-				else if ( /* wrong password */ )
+				else if ( /* wrong password */ )	/* USART_Receive wrongPassword */
 				{
 					// notify the user using LED? on slave's side?
-					// TODO: let user input again?
-				}
-						
+					// let user input again
+				}		
 
 		}
 	}
