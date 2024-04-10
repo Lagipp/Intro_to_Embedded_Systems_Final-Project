@@ -90,7 +90,7 @@ int main(void)
 				if( /* motion sensor 1 */ )
 				{	
 					TIMER = 0;		/* start the timer */
-					STATE = 2		/* goto "MOVEMENT_DETECTED" */
+					STATE = 2;		/* goto "MOVEMENT_DETECTED" */
 				}	
 				
 				
@@ -119,7 +119,7 @@ int main(void)
 				
 					else if ( TIMER > 10 )
 					{
-						STATE = 4		/* goto "BUZZER_ON" */
+						STATE = 4;		/* goto "BUZZER_ON" */
 						// send data to slave, turn buzzer on
 							/* USART_Transmit turnOnBuzzer */			// NOTE: this first before state change?
 					}
