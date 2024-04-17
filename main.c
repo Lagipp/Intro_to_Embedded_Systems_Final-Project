@@ -25,6 +25,12 @@
 
 //int STATE = 1;         // start in IDLE state
 
+/* keypad defines */
+#define RowColDirection DDRB	// Data Direction Configuration for keypad
+#define ROW PORTB				// Lower four bits of PORTC are used as ROWs
+#define COL PINB				// Higher four bits of PORTC are used as COLs
+
+
 
 #include <avr/io.h>
 #include <stdio.h>
@@ -85,12 +91,20 @@ int main(void)
 	int STATE = 1;         // start state machine in "alarm is armed" state
 	int TIMER = -1;
 	
-	char send_array[10] = NULL;			// sending either "turnOnBuzz" or "turnOffBuz"
-	char receive_array[6] = NULL;		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
+	char send_array[10] = "";			// sending either "turnOnBuzz" or "turnOffBuz"
+	char receive_array[6] = "";		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
 	
 	int correctPassword = 1234;
-	int inputPassword = NULL;
+	int inputPassword[4] = {  };
+	int pressedKey = -1;
+	int idx = 0;
+	int pwLength = 0;
+	char keypadToText[4] = "";
 	
+	/* initialize the keypad */
+	KEYPAD_Init();
+	
+	TIMER = 0;
 	
 	while(1)
 	{	
@@ -98,7 +112,8 @@ int main(void)
 		{
 			case 1:		// "ALARM_ARMED"  /  default when the system is started
 			
-				if( /* motion sensor 1 */ )
+				/* if motion sensor activates */
+				if( 0 )
 				{	
 					TIMER = 0;		/* start the timer */
 					STATE = 2;		/* goto "MOVEMENT_DETECTED" */
@@ -116,7 +131,27 @@ int main(void)
 					// user inputs the password on the keypad
 						/* USART_Transmit password */
 						
-					PORTB &= ~(1 << PB0);		// set SS low
+					
+					pwLength = sizeof(inputPassword) / sizeof(inputPassword[0]);
+					//printf("%d\n", sizeof(inputPassword) / (inputPassword[0]));
+	
+					//char keypadToText[4] = "";
+					
+					printf("%d", pwLength);
+					
+					if (pwLength < 4)
+					{
+						pressedKey = KEYPAD_GetKey();
+						keypadToText[idx] = pressedKey;			// converting int to char
+						//inputPassword[idx] = pressedKey;
+						printf("%c", keypadToText[idx]);
+						idx += 1;
+					}
+					
+					printf("%s", keypadToText);
+					
+						
+					/* PORTB &= ~(1 << PB0);		// set SS low
 					
 					for (int i = 0; i <= sizeof(send_array); i++)
 					{
@@ -126,8 +161,8 @@ int main(void)
 						receive_array[i] = SPDR;				// Receive data using SPDR
 					}
 					
-					PORTB |= (1 << PB0);
-					printf("%s \n", receive_array);
+					PORTB |= (1 << PB0); */
+					
 					
 						
 					/* correct password */
