@@ -12,8 +12,7 @@
 /* DEFINES COME FROM Ex. 9 */
 #define F_CPU 16000000UL
 #define BAUD 9600
-
-#define FOSC 16000000UL
+#define FOSC 16000000UL			// clock speed
 #define MYUBRR FOSC/16/BAUD-1
 
 
@@ -27,11 +26,13 @@
 //int STATE = 1;         // start in IDLE state
 
 
-
 #include <avr/io.h>
 #include <stdio.h>
 #include <util/setbaud.h>
 #include <util/delay.h>
+#include "keypad/keypad.h"
+#include "keypad/delay.h"
+// #include "keypad/stdutils.h"
 
 void USART_Init(unsigned int ubrr)
 {
@@ -53,15 +54,21 @@ unsigned char USART_Receive( FILE *stream )
 	return UDR0;
 }
 
+/* the example code has these outside the main function? */
+FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
+FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
 
 
 int main(void)
 {
-    USART_Init(MYUBRR);
+    /* FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
+    FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ); */
+ 
+ 
+	// initialize the UART with 9600 BAUD
+	USART_Init(MYUBRR);
     
-    FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
-    FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
-    
+	// redirect the stdin and stdout to UART functions
     stdout = &uart_output;
     stdin = &uart_input;
 	
@@ -78,11 +85,15 @@ int main(void)
 	int STATE = 1;         // start state machine in "alarm is armed" state
 	int TIMER = -1;
 	
+	char send_array[10] = NULL;			// sending either "turnOnBuzz" or "turnOffBuz"
+	char receive_array[6] = NULL;		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
+	
+	int correctPassword = 1234;
+	int inputPassword = NULL;
 	
 	
 	while(1)
 	{	
-		
 		switch(STATE)
 		{
 			case 1:		// "ALARM_ARMED"  /  default when the system is started
@@ -104,26 +115,44 @@ int main(void)
 				{
 					// user inputs the password on the keypad
 						/* USART_Transmit password */
-				
-					if ( /* correct password */)		// USART_Receive correctPassword
+						
+					PORTB &= ~(1 << PB0);		// set SS low
+					
+					for (int i = 0; i <= sizeof(send_array); i++)
+					{
+						SPDR = send_array[i];
+						
+						while (!(SPSR & (1 << SPIF))) {;}		// Wait until ready
+						receive_array[i] = SPDR;				// Receive data using SPDR
+					}
+					
+					PORTB |= (1 << PB0);
+					printf("%s \n", receive_array);
+					
+						
+					/* correct password */
+					if ( inputPassword == correctPassword )
 					{
 						STATE = 3;		/* goto "ALARM_DISARMED" */
 						TIMER = -1000000;
 					}
 				
-					else if ( /* wrong password */ )	// USART_Receive wrongPassword
+					/* wrong password */
+					else if ( !inputPassword == correctPassword )
 					{
 						// notify the user using LED on slave's side?		/* when slave sends message, flash/turn on led on slave's side */
 						// let user input again
 					}
 				
 					else if ( TIMER > 10 )
-					{
+					{	
 						STATE = 4;		/* goto "BUZZER_ON" */
+						
+						/* USART_Transmit "bzOn" */
+						
 						// send data to slave, turn buzzer on
-							/* USART_Transmit turnOnBuzzer */			// NOTE: this first before state change?
 					}
-				
+					
 					TIMER += 1;		/* NOTE: has to be asynchronous? how to do this? */
 				}
 			
@@ -132,6 +161,9 @@ int main(void)
 	
 				// stop the timer (?)
 				// the program is finished (unless rearm functionality is added)	
+				
+				
+				/* TODO: input to console(?) "system disarmed" */
 			
 				break;			// no exit function in C?
 			
@@ -142,14 +174,17 @@ int main(void)
 						
 				/* WAIT FOR USER'S PASSWORD */
 				
-				if ( /* correct password */)		/* USART_Receive correctPassword */
+				/* correct password */
+				if ( inputPassword == correctPassword )
 				{
-					STATE = 3;		// goto "ALARM_DISARMED"
+					STATE = 3;		/* goto "ALARM_DISARMED" */
+					TIMER = -1000000;
 				}
 				
-				else if ( /* wrong password */ )	/* USART_Receive wrongPassword */
+				/* wrong password */
+				else if ( !inputPassword == correctPassword )
 				{
-					// notify the user using LED? on slave's side?
+					// notify the user using LED on slave's side?		/* when slave sends message, flash/turn on led on slave's side */
 					// let user input again
 				}		
 
