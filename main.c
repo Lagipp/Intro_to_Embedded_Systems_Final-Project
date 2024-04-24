@@ -143,8 +143,6 @@ int main(void)
 							printf("Password incorrect!");
 						}
 					}
-					
-					
 					/*
 					pwLength = sizeof(inputPassword) / sizeof(inputPassword[0]);
 					//printf("%d\n", sizeof(inputPassword) / (inputPassword[0]));
