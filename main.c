@@ -30,7 +30,7 @@
 #define ROW PORTB				// Lower four bits of PORTC are used as ROWs
 #define COL PINB				// Higher four bits of PORTC are used as COLs
 
-
+#define PASSWORD "1234"
 
 #include <avr/io.h>
 #include <stdio.h>
@@ -91,14 +91,12 @@ int main(void)
 	int STATE = 1;         // start state machine in "alarm is armed" state
 	int TIMER = -1;
 	
-	char send_array[10] = "";			// sending either "turnOnBuzz" or "turnOffBuz"
-	char receive_array[6] = "";		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
+	char send_array[10];			// sending either "turnOnBuzz" or "turnOffBuz"
+	char receive_array[6];		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
 	
-	int correctPassword = 1234;
-	int inputPassword[4] = {  };
-	int pressedKey = -1;
+	char inputPassword[20];
+	char pressedKey;
 	int idx = 0;
-	int pwLength = 0;
 	char keypadToText[4] = "";
 	
 	/* initialize the keypad */
@@ -125,13 +123,29 @@ int main(void)
 				// NOTE: input password on master, send data to slave
 				// slave validates the password and sends the data back to master
 				// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
-			
-				while (TIMER < 100)
+				printf("Type your password: ");
+				int pwLength = 0;
+				while (1)
 				{
 					// user inputs the password on the keypad
 						/* USART_Transmit password */
 						
+					pressedKey = KEYPAD_GetKey();
+					printf("%c\r", pressedKey);
+					inputPassword[pwLength] = pressedKey;
+					inputPassword[pwLength+1] = '\0';
+					pwLength = strlen(inputPassword);
+					if(strlen(inputPassword) == 4) {
+						if(!strcmp(inputPassword, PASSWORD)) {
+							printf("Password correct!");
+						} 
+						if (strcmp(inputPassword, PASSWORD)){
+							printf("Password incorrect!");
+						}
+					}
 					
+					
+					/*
 					pwLength = sizeof(inputPassword) / sizeof(inputPassword[0]);
 					//printf("%d\n", sizeof(inputPassword) / (inputPassword[0]));
 	
@@ -149,7 +163,7 @@ int main(void)
 					}
 					
 					printf("%s", keypadToText);
-					
+					*/
 						
 					/* PORTB &= ~(1 << PB0);		// set SS low
 					
@@ -166,29 +180,32 @@ int main(void)
 					
 						
 					/* correct password */
-					if ( inputPassword == correctPassword )
-					{
-						STATE = 3;		/* goto "ALARM_DISARMED" */
-						TIMER = -1000000;
-					}
-				
+					
+					//if ( inputPassword == correctPassword )
+					//{
+						//STATE = 3;		/* goto "ALARM_DISARMED" */
+						//TIMER = -1000000;
+					//}
+					
 					/* wrong password */
-					else if ( !inputPassword == correctPassword )
-					{
+					//else if ( !inputPassword == correctPassword )
+					//{
 						// notify the user using LED on slave's side?		/* when slave sends message, flash/turn on led on slave's side */
 						// let user input again
-					}
+					//}
 				
-					else if ( TIMER > 10 )
-					{	
-						STATE = 4;		/* goto "BUZZER_ON" */
+					//else if ( TIMER > 10 )
+					//{	
+						//STATE = 4;		/* goto "BUZZER_ON" */
 						
 						/* USART_Transmit "bzOn" */
 						
 						// send data to slave, turn buzzer on
-					}
+					//}
 					
 					TIMER += 1;		/* NOTE: has to be asynchronous? how to do this? */
+					
+				
 				}
 			
 				
@@ -210,14 +227,14 @@ int main(void)
 				/* WAIT FOR USER'S PASSWORD */
 				
 				/* correct password */
-				if ( inputPassword == correctPassword )
+				if ( inputPassword == PASSWORD )
 				{
 					STATE = 3;		/* goto "ALARM_DISARMED" */
 					TIMER = -1000000;
 				}
 				
 				/* wrong password */
-				else if ( !inputPassword == correctPassword )
+				else if ( !inputPassword == PASSWORD )
 				{
 					// notify the user using LED on slave's side?		/* when slave sends message, flash/turn on led on slave's side */
 					// let user input again
