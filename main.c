@@ -165,6 +165,7 @@ int main(void)
 						printf("Type the password: ");
 						printf("%s\n\r", inputPassword);
 					}
+					
 					/*
 					pwLength = sizeof(inputPassword) / sizeof(inputPassword[0]);
 					//printf("%d\n", sizeof(inputPassword) / (inputPassword[0]));
