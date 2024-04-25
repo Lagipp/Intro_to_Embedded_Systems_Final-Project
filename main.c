@@ -30,10 +30,19 @@
 #define ROW PORTB				// Lower four bits of PORTC are used as ROWs
 #define COL PINB				// Higher four bits of PORTC are used as COLs
 
+#define PASSWORD "1234"
+
+typedef int bool
+#define true 1
+#define false 0
+
+
 
 
 #include <avr/io.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <util/setbaud.h>
 #include <util/delay.h>
 #include "keypad/keypad.h"
@@ -91,15 +100,16 @@ int main(void)
 	int STATE = 1;         // start state machine in "alarm is armed" state
 	int TIMER = -1;
 	
-	char send_array[10] = "";			// sending either "turnOnBuzz" or "turnOffBuz"
-	char receive_array[6] = "";		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
+	char send_array[10];			// sending either "turnOnBuzz" or "turnOffBuz"
+	char receive_array[6];			// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
 	
-	int correctPassword = 1234;
-	int inputPassword[4] = {  };
-	int pressedKey = -1;
+	char correctPassword[6] = "1234";
+	int inputPassword[20];
+	int pressedKey;
 	int idx = 0;
 	int pwLength = 0;
-	char keypadToText[4] = "";
+	char asciiToHex[6] = "";
+	bool passwordIsSet = false;
 	
 	/* initialize the keypad */
 	KEYPAD_Init();
@@ -126,29 +136,43 @@ int main(void)
 				// slave validates the password and sends the data back to master
 				// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
 			
+				printf("Type your password: ");
+				pwLength = 0;
+			
 				while (TIMER < 100)
 				{
 					// user inputs the password on the keypad
 						/* USART_Transmit password */
-						
+							
 					
-					pwLength = sizeof(inputPassword) / sizeof(inputPassword[0]);
-					//printf("%d\n", sizeof(inputPassword) / (inputPassword[0]));
-	
-					//char keypadToText[4] = "";
-					
-					printf("%d", pwLength);
-					
-					if (pwLength < 4)
+					/* if (pwLength < 4)
 					{
 						pressedKey = KEYPAD_GetKey();
-						keypadToText[idx] = pressedKey;			// converting int to char
-						//inputPassword[idx] = pressedKey;
-						printf("%c", keypadToText[idx]);
+						asciiToHex[idx] = (char) pressedKey;			// converting int to char
+						inputPassword[idx] = (int) pressedKey;
 						idx += 1;
-					}
+					} */
 					
-					printf("%s", keypadToText);
+					pressedKey = KEYPAD_GetKey();
+					printf("%c\r", pressedKey);
+					inputPassword[pwLength] = pressedKey;
+					inputPassword[pwLength + 1] = '\0';
+					pwLength = strlen(inputPassword);
+					
+					if(strlen(inputPassword) == 4) 
+					{
+						passwordIsSet = true;
+						
+						if(!strcmp(inputPassword, PASSWORD)) 
+						{
+							printf("Password correct!");
+						}
+						if (strcmp(inputPassword, PASSWORD)){
+							printf("Password incorrect!");
+						}
+					}
+
+
 					
 						
 					/* PORTB &= ~(1 << PB0);		// set SS low
@@ -166,17 +190,20 @@ int main(void)
 					
 						
 					/* correct password */
-					if ( inputPassword == correctPassword )
+					if ( passwordIsSet == true && !strcmp(inputPassword, correctPassword) )
 					{
+						printf("correct password!\n\r entering state 3 ALARM_DISARMED");
 						STATE = 3;		/* goto "ALARM_DISARMED" */
 						TIMER = -1000000;
 					}
 				
 					/* wrong password */
-					else if ( !inputPassword == correctPassword )
+					else if ( passwordIsSet == true && strcmp(inputPassword, correctPassword) )
 					{
-						// notify the user using LED on slave's side?		/* when slave sends message, flash/turn on led on slave's side */
-						// let user input again
+						printf("incorrect password\n\r entering state 4 BUZZER_ON");
+						// notify the user using LED on slave's side?	/* when slave sends message, flash/turn on led on slave's side */
+						/* USART_Transmit "bzOn" */
+						STATE = 4;		/* goto "BUZZER_ON" */
 					}
 				
 					else if ( TIMER > 10 )
@@ -198,7 +225,8 @@ int main(void)
 				// the program is finished (unless rearm functionality is added)	
 				
 				
-				/* TODO: input to console(?) "system disarmed" */
+				printf("The alarm has been disarmed.\n\r");
+				printf("The program will now shut down.\n\r");
 			
 				break;			// no exit function in C?
 			
