@@ -41,9 +41,12 @@
 #include <stdio.h>
 #include <util/setbaud.h>
 #include <util/delay.h>
+#include <avr/interrupt.h>
 #include "keypad/keypad.h"
 #include "keypad/delay.h"
 // #include "keypad/stdutils.h"
+
+int global_timer = 0; // Used in ISR to count time after movement is detected.
 
 void USART_Init(unsigned int ubrr)
 {
@@ -69,6 +72,30 @@ unsigned char USART_Receive( FILE *stream )
 FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
 
+// Source: http://www.arduinoslovakia.eu/application/timer-calculator
+void setupTimer1() {
+	// Clear registers
+	TCCR1A = 0;
+	TCCR1B = 0;
+	TCNT1 = 0;
+
+	// 1 Hz (16000000/((15624+1)*1024))
+	OCR1A = 15624;
+	// CTC
+	TCCR1B |= (1 << WGM12);
+	// Prescaler 1024
+	TCCR1B |= (1 << CS12) | (1 << CS10);
+	// Output Compare Match A Interrupt Enable
+	TIMSK1 |= (1 << OCIE1A);
+	sei();
+}
+
+ISR(TIMER1_COMPA_vect) {
+	global_timer++;
+	if(global_timer > 10) {
+		printf("\nCounter: %d", global_timer);
+	}
+}
 
 int main(void)
 {
@@ -100,7 +127,7 @@ int main(void)
 	char receive_array[6];		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
 	char inputPassword[20];
 	char pressedKey;
-	
+	setupTimer1();
 	
 	/* initialize the keypad */
 	KEYPAD_Init();
