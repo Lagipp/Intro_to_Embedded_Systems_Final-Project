@@ -19,11 +19,12 @@
 /* STATE MACHINE VALUES */
 #define ALARM_ARMED 1
 #define MOVEMENT_DETECTED 2
-#define ALARM_DISARMED 3
-#define BUZZER_ON 4
-#define REARM 5
+#define BUZZER_ON 3
+#define REARM 4
 #define FAULT 0
 
+#define BUZZER_START_TIME 300 // Time when buzzer is turned on after detecting motion (seconds)
+int global_timer = 0; // Used in ISR to count time after movement is detected.
 //int STATE = 1;         // start in IDLE state
 
 /* keypad defines */
@@ -36,17 +37,19 @@
 #define BACKSPACE '*'
 #define ENTER '#'
 #define REARM_BTN 'A'
+#define EXIT_BTN 'B'
 
 #include <avr/io.h>
 #include <stdio.h>
 #include <util/setbaud.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <ctype.h>
 #include "keypad/keypad.h"
 #include "keypad/delay.h"
 // #include "keypad/stdutils.h"
 
-int global_timer = 0; // Used in ISR to count time after movement is detected.
+
 
 void USART_Init(unsigned int ubrr)
 {
@@ -73,7 +76,7 @@ FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
 
 // Source: http://www.arduinoslovakia.eu/application/timer-calculator
-void setupTimer1() {
+void StartTimer1() {
 	// Clear registers
 	TCCR1A = 0;
 	TCCR1B = 0;
@@ -92,8 +95,8 @@ void setupTimer1() {
 
 ISR(TIMER1_COMPA_vect) {
 	global_timer++;
-	if(global_timer > 10) {
-		printf("\nCounter: %d", global_timer);
+	if(global_timer == BUZZER_START_TIME) {
+		printf("\r\nUNO has turned on the buzzer!\n\r");
 	}
 }
 
@@ -120,19 +123,15 @@ int main(void)
 	SPCR |= (1 << MSTR);	// set as master
 	SPCR |= (1 << SPR0);	// set SPI clock rate to 1 MHz
 	
-	int STATE = 1;         // start state machine in "alarm is armed" state
-	int TIMER = -1;
+	int STATE = ALARM_ARMED;         // start state machine in "alarm is armed" state
 	
 	char send_array[10];			// sending either "turnOnBuzz" or "turnOffBuz"
 	char receive_array[6];		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
 	char inputPassword[20];
 	char pressedKey;
-	setupTimer1();
-	
+	int pwLength = 0;
 	/* initialize the keypad */
 	KEYPAD_Init();
-	
-	TIMER = 0;
 	
 	while(1)
 	{	
@@ -141,36 +140,40 @@ int main(void)
 			case ALARM_ARMED:		 //  default when the system is started
 			
 				/* if motion sensor activates */
-				if( 0 )
-				{	
-					TIMER = 0;		/* start the timer */
-					STATE = MOVEMENT_DETECTED;		/* goto "MOVEMENT_DETECTED" */
+				if( 1 )
+				{
+					StartTimer1();
+					STATE = MOVEMENT_DETECTED;
+					break;		/* goto "MOVEMENT_DETECTED" */
 				}	
 				
-				
+				break;
 			case MOVEMENT_DETECTED:		// ""  /  the sensor is triggered
-			
 				// NOTE: input password on master, send data to slave
 				// slave validates the password and sends the data back to master
 				// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
-				printf("Type the password: ");
-				int pwLength = 0;
+				pwLength = 0;
 				*inputPassword = '\0';
 				pressedKey = NULL;
+				printf("Type the password ('#' enter, '*' backspace): \n\r");
 				while (1)
 				{
 					// user inputs the password on the keypad
 						/* USART_Transmit password */
-						
+					
 					pressedKey = KEYPAD_GetKey();
+					if(global_timer > BUZZER_START_TIME) {
+						STATE = BUZZER_ON;
+						break;
+					}
 					pwLength = strlen(inputPassword);
 					if(pressedKey == ENTER) {
 						if(!strcmp(inputPassword, PASSWORD)) {
-							printf("Password correct!\n");
-							STATE = ALARM_DISARMED;
+							printf("Password correct!\n\r");
+							STATE = REARM;
 						} 
 						if (strcmp(inputPassword, PASSWORD)){
-							printf("Password incorrect!\n");
+							printf("Password incorrect!\n\r");
 							STATE = BUZZER_ON;
 						}
 						pwLength = 0;
@@ -180,114 +183,71 @@ int main(void)
 					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
 						inputPassword[pwLength] = NULL;
 						inputPassword[pwLength-1] = '\0';
-						printf("Type the password: ");
-						printf("%s\n\r", inputPassword);
-					} else if (pressedKey == BACKSPACE){
-						continue;
-					} else if (pressedKey == REARM_BTN) {
-						continue;
-					} else if (pwLength < CORRECT_PW_LENGTH) {
+					} else if ((pwLength < CORRECT_PW_LENGTH) && isdigit(pressedKey)) {
 						inputPassword[pwLength] = pressedKey;
-						inputPassword[pwLength+1] = '\0';
-						printf("Type the password: ");
-						printf("%s\n\r", inputPassword);
-					}
-					
-					/*
-					pwLength = sizeof(inputPassword) / sizeof(inputPassword[0]);
-					//printf("%d\n", sizeof(inputPassword) / (inputPassword[0]));
-	
-					//char keypadToText[4] = "";
-					
-					printf("%d", pwLength);
-					
-					if (pwLength < 4)
-					{
-						pressedKey = KEYPAD_GetKey();
-						keypadToText[idx] = pressedKey;			// converting int to char
-						//inputPassword[idx] = pressedKey;
-						printf("%c", keypadToText[idx]);
-						idx += 1;
-					}
-					
-					printf("%s", keypadToText);
-					*/
-						
-					/* PORTB &= ~(1 << PB0);		// set SS low
-					
-					for (int i = 0; i <= sizeof(send_array); i++)
-					{
-						SPDR = send_array[i];
-						
-						while (!(SPSR & (1 << SPIF))) {;}		// Wait until ready
-						receive_array[i] = SPDR;				// Receive data using SPDR
-					}
-					
-					PORTB |= (1 << PB0); */
-					
-					
-						
-					/* correct password */
-					
-					//if ( inputPassword == correctPassword )
-					//{
-						//STATE = 3;		/* goto "ALARM_DISARMED" */
-						//TIMER = -1000000;
-					//}
-					
-					/* wrong password */
-					//else if ( !inputPassword == correctPassword )
-					//{
-						// notify the user using LED on slave's side?		/* when slave sends message, flash/turn on led on slave's side */
-						// let user input again
-					//}
-				
-					//else if ( TIMER > 10 )
-					//{	
-						//STATE = 4;		/* goto "BUZZER_ON" */
-						
-						/* USART_Transmit "bzOn" */
-						
-						// send data to slave, turn buzzer on
-					//}
-					
-					TIMER += 1;		/* NOTE: has to be asynchronous? how to do this? */
-					
-				
+						inputPassword[pwLength+1] = '\0';					
+					} else {
+						continue;
+					}	
+					printf("%s\n\r", inputPassword);		
 				}
 				break;
-				
-			case ALARM_DISARMED:		// ""  /  the correct password was input
-	
-				// stop the timer (?)
-				// the program is finished (unless rearm functionality is added)	
-				printf("Alarm has been disarmed.\n");
-				
-				/* TODO: input to console(?) "system disarmed" */
-				STATE = REARM;
-				break;			// no exit function in C?
-			
 			
 			case BUZZER_ON:		// ""  /  start the buzzer when the 10 second timer ran out
 						/* basically the same as state 2 (movement detected) but without the timer */
-						
-				printf("Buzzer!\n");		
-				/* WAIT FOR USER'S PASSWORD */
-				STATE = REARM;
+				printf("\nState change to BUZZER_ON\n\r");
+				pwLength = 0;
+				*inputPassword = '\0';
+				pressedKey = NULL;
+				printf("Type the password ('#' enter, '*' backspace): \n\r");
+				while (1)
+				{
+					// user inputs the password on the keypad
+					/* USART_Transmit password */
+					
+					pressedKey = KEYPAD_GetKey();
+					pwLength = strlen(inputPassword);
+					if(pressedKey == ENTER) {
+						if(!strcmp(inputPassword, PASSWORD)) {
+							printf("Password correct!\n\r");
+							STATE = REARM;
+							pwLength = 0;
+							*inputPassword = '\0';
+							pressedKey = NULL;
+							break;
+						}
+						if (strcmp(inputPassword, PASSWORD)) {
+							printf("Password incorrect!\n\r");
+						}
+					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
+						inputPassword[pwLength] = NULL;
+						inputPassword[pwLength-1] = '\0';
+					} else if ((pwLength < CORRECT_PW_LENGTH) && isdigit(pressedKey)) {
+						inputPassword[pwLength] = pressedKey;
+						inputPassword[pwLength+1] = '\0';
+					} else {
+						continue;
+					}
+					printf("%s\n\r", inputPassword);
+				}
 				break;
 			case REARM:
-				printf("Press %c to rearm.\n", REARM_BTN);
+				printf("Alarm has been disarmed.\n\r");
+				printf("Press %c to rearm. Press %c to exit.\n\r", REARM_BTN, EXIT_BTN);
 				while(1) {
 					pressedKey = KEYPAD_GetKey();
 					if(pressedKey == REARM_BTN) {
-						printf("Rearmed.\n");
+						printf("Rearmed.\n\r");
 						STATE = ALARM_ARMED;
 						break;
+					} else if (pressedKey == EXIT_BTN) {
+						printf("Exiting...\n\r");
+						exit(0);
 					}
 				}
 				break;
 			case FAULT:
-				printf("Error");
+				printf("ERROR\n");
 				break;
 		}
 	}
