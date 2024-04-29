@@ -23,7 +23,7 @@
 #define REARM 4
 #define FAULT 0
 
-#define BUZZER_START_TIME 300 // Time when buzzer is turned on after detecting motion (seconds)
+#define BUZZER_START_TIME 10 // Time when buzzer is turned on after detecting motion (seconds)
 int global_timer = 0; // Used in ISR to count time after movement is detected.
 //int STATE = 1;         // start in IDLE state
 
@@ -41,6 +41,8 @@ int global_timer = 0; // Used in ISR to count time after movement is detected.
 
 #include <avr/io.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <util/setbaud.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
@@ -122,16 +124,22 @@ int main(void)
 	SPCR |= (1 << SPE);		// SPI enable
 	SPCR |= (1 << MSTR);	// set as master
 	SPCR |= (1 << SPR0);	// set SPI clock rate to 1 MHz
-	
-	int STATE = ALARM_ARMED;         // start state machine in "alarm is armed" state
+	        // start state machine in "alarm is armed" state
 	
 	char send_array[10];			// sending either "turnOnBuzz" or "turnOffBuz"
 	char receive_array[6];		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
 	char inputPassword[20];
 	char pressedKey;
 	int pwLength = 0;
+	
+	/* Motion sensor */
+	DDRG &= ~(1 << PG0); // Pin 8 as input
+	int8_t motion_sensor_value = 0;
+	
 	/* initialize the keypad */
 	KEYPAD_Init();
+	
+	int STATE = ALARM_ARMED; 
 	
 	while(1)
 	{	
@@ -140,18 +148,24 @@ int main(void)
 			case ALARM_ARMED:		 //  default when the system is started
 			
 				/* if motion sensor activates */
-				if( 1 )
+				printf("DETECTING MOTION...\n\r");
+				while(1)
 				{
-					StartTimer1();
-					STATE = MOVEMENT_DETECTED;
-					break;		/* goto "MOVEMENT_DETECTED" */
+					motion_sensor_value = (PING & (1 << PG0));
+					_delay_ms(10);
+					if(motion_sensor_value) {
+						printf("\nMOTION DETECTED!\n\n\r");
+						STATE = MOVEMENT_DETECTED;
+						break;		// goto "MOVEMENT_DETECTED"
+					}		
 				}	
-				
 				break;
 			case MOVEMENT_DETECTED:		// ""  /  the sensor is triggered
 				// NOTE: input password on master, send data to slave
 				// slave validates the password and sends the data back to master
 				// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
+				StartTimer1();
+				global_timer = 0;
 				pwLength = 0;
 				*inputPassword = '\0';
 				pressedKey = NULL;
