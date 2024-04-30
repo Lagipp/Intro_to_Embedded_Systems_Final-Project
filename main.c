@@ -222,7 +222,7 @@ int main(void)
 				// Resets values
 				pwLength = 0;
 				*inputPassword = '\0';
-				pressedKey = NULL;
+				pressedKey = '\0';
 				
 				printf("Type the password ('#' enter, '*' backspace): \n\r");
 				lcd_clrscr();
@@ -242,6 +242,7 @@ int main(void)
 					// Press ENTER to check if password is correct
 					if(pressedKey == ENTER) {
 						if(!strcmp(inputPassword, PASSWORD)) {
+							StopTimer1();
 							printf("Password correct!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
@@ -251,6 +252,7 @@ int main(void)
 							STATE = ALARM_DISARMED;
 						} 
 						if (strcmp(inputPassword, PASSWORD)){
+							StopTimer1();
 							printf("Password incorrect!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
@@ -265,11 +267,11 @@ int main(void)
 						// Reset values
 						pwLength = 0;
 						*inputPassword = '\0';
-						pressedKey = NULL;
+						pressedKey = '\0';
 						break;
 					// Removes one character from the input password
 					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
-						inputPassword[pwLength] = NULL;
+						inputPassword[pwLength] = '\0';
 						inputPassword[pwLength-1] = '\0';
 						lcd_clrscr();
 						lcd_puts("Enter password:");
@@ -293,7 +295,7 @@ int main(void)
 				// Reset values
 				pwLength = 0;
 				*inputPassword = '\0';
-				pressedKey = NULL;
+				pressedKey = '\0';
 				
 				printf("Type the password to disable the alarm ('#' enter, '*' backspace): \n\r");
 				lcd_clrscr();
@@ -307,6 +309,7 @@ int main(void)
 					// Press ENTER to check the input password
 					if(pressedKey == ENTER) {
 						if(!strcmp(inputPassword, PASSWORD)) {
+							StopTimer1();
 							printf("Password correct!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
@@ -316,7 +319,7 @@ int main(void)
 							STATE = ALARM_DISARMED;
 							pwLength = 0;
 							*inputPassword = '\0';
-							pressedKey = NULL;
+							pressedKey = '\0';
 							break;
 						}
 						if (strcmp(inputPassword, PASSWORD)) {
@@ -327,14 +330,14 @@ int main(void)
 							lcd_puts("INCORRECT!");
 							pwLength = 0;
 							*inputPassword = '\0';
-							pressedKey = NULL;
+							pressedKey = '\0';
 							_delay_ms(2000);
 							lcd_clrscr();
 							lcd_puts("Enter password:");
 						}
 					// Removes one character from the input password
 					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
-						inputPassword[pwLength] = NULL;
+						inputPassword[pwLength] = '\0';
 						inputPassword[pwLength-1] = '\0';
 						lcd_clrscr();
 						lcd_puts("Enter password:");
