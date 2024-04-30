@@ -5,7 +5,7 @@
  *		final project - master side
  *
  * Created: 3.4.2024 12.24.39
- * Author : Miika Pynttäri
+ * Author : Group 14
  */ 
 
 
@@ -50,9 +50,6 @@ int g_timer = 0; // Used in ISR to count time after movement is detected.
 #include "keypad/delay.h"
 #include "LCD/lcd.h"
 
-// #include "keypad/stdutils.h"
-
-
 
 void USART_Init(unsigned int ubrr)
 {
@@ -74,7 +71,7 @@ unsigned char USART_Receive( FILE *stream )
 	return UDR0;
 }
 
-/* the example code has these outside the main function? */
+// Assign stdout and stdin as USART
 FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
 
@@ -104,14 +101,17 @@ ISR(TIMER1_COMPA_vect) {
 	g_timer++;
 	if(g_timer == BUZZER_START_TIME) {
 		printf("\r\nUNO has turned on the buzzer!\n\r");
+		
 		lcd_clrscr();
-		lcd_puts("Time has run");
+		lcd_puts("TIME HAS RUN");
 		lcd_gotoxy(0,1);
-		lcd_puts("out.");
+		lcd_puts("OUT!");
 		_delay_ms(2000);
+		
 		lcd_clrscr();
-		lcd_puts("Alarm turned on!");
+		lcd_puts("ALARM TURNED ON!");
 		_delay_ms(1000);
+		
 		lcd_clrscr();
 		lcd_puts("Enter password:");
 		StopTimer1();
@@ -128,15 +128,16 @@ void SetupLCD() {
 
 int main(void)
 {
- 
-	 sei(); //enable interrupts
- 
-	 SetupLCD();
+	//Enable interrupts
+	sei(); 
+	
+	// Setting up LCD
+	SetupLCD();
 	 
-	// initialize the UART with 9600 BAUD
+	// Initialize the UART with 9600 BAUD
 	USART_Init(MYUBRR);
     
-	// redirect the stdin and stdout to UART functions
+	// Redirect the stdin and stdout to UART functions
     stdout = &uart_output;
     stdin = &uart_input;
 	
@@ -149,20 +150,30 @@ int main(void)
 	SPCR |= (1 << SPE);		// SPI enable
 	SPCR |= (1 << MSTR);	// set as master
 	SPCR |= (1 << SPR0);	// set SPI clock rate to 1 MHz
-	        // start state machine in "alarm is armed" state
 	
-
+	// Password the user inputs
 	char inputPassword[20];
+	
+	// Keypad pressed key
 	char pressedKey;
+	
+	// User input password length
 	int pwLength = 0;
 	
 	/* Motion sensor */
-	DDRG &= ~(1 << PG0); // Pin 8 as input
+	DDRG &= ~(1 << PG0);
 	int8_t motion_sensor_value = 0;
 	
 	/* initialize the keypad */
 	KEYPAD_Init();
 	
+	lcd_clrscr();
+	lcd_puts("Starting");
+	lcd_gotoxy(0,1);
+	lcd_puts("application...");
+	_delay_ms(2000);
+	
+	// Start state machine in ALARM_ARMED state
 	int STATE = ALARM_ARMED; 
 	
 	while(1)
@@ -171,12 +182,13 @@ int main(void)
 		{
 			case ALARM_ARMED:		 //  default when the system is started
 			
-				/* if motion sensor activates */
 				lcd_clrscr();
 				printf("DETECTING MOTION...\n\r");
 				lcd_puts("DETECTING");
 				lcd_gotoxy(0,1);
 				lcd_puts("MOTION...");
+				
+				// Detecting motion with the motion sensor
 				while(1)
 				{
 					motion_sensor_value = (PING & (1 << PG0));
@@ -184,7 +196,7 @@ int main(void)
 					if(motion_sensor_value) {
 						printf("\nMOTION DETECTED!\n\n\r");
 						lcd_clrscr();
-						lcd_puts("MOTION DETECTED");
+						lcd_puts("MOTION DETECTED!");
 						_delay_ms(1500);
 						lcd_clrscr();
 						lcd_puts("Backspace = '*'");
@@ -201,35 +213,40 @@ int main(void)
 					}		
 				}	
 				break;
-			case MOVEMENT_DETECTED:		// ""  /  the sensor is triggered
-				// NOTE: input password on master, send data to slave
-				// slave validates the password and sends the data back to master
-				// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
+			case MOVEMENT_DETECTED:		// Motion sensor triggered
+				// password is hardcoded e.g. 1234
+				
+				// Starts timer
 				SetupTimer1();
+				
+				// Resets values
 				pwLength = 0;
 				*inputPassword = '\0';
 				pressedKey = NULL;
+				
 				printf("Type the password ('#' enter, '*' backspace): \n\r");
 				lcd_clrscr();
 				lcd_puts("Enter password:");
 				while (1)
 				{
-					// user inputs the password on the keypad
-						/* USART_Transmit password */
-					
+					// user inputs the password on the keypad					
 					pressedKey = KEYPAD_GetKey();
+					
+					// If the timer has ran out
 					if(g_timer >= BUZZER_START_TIME) {
 						STATE = BUZZER_ON;
 						break;
 					}
 					pwLength = strlen(inputPassword);
+					
+					// Press ENTER to check if password is correct
 					if(pressedKey == ENTER) {
 						if(!strcmp(inputPassword, PASSWORD)) {
 							printf("Password correct!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
 							lcd_gotoxy(0,1);
-							lcd_puts("correct!");
+							lcd_puts("CORRECT!");
 							_delay_ms(2000);
 							STATE = ALARM_DISARMED;
 						} 
@@ -238,17 +255,19 @@ int main(void)
 							lcd_clrscr();
 							lcd_puts("Password");
 							lcd_gotoxy(0,1);
-							lcd_puts("incorrect!");
+							lcd_puts("INCORRECT!");
 							_delay_ms(2000);
 							lcd_clrscr();
-							lcd_puts("Alarm turned on!");
+							lcd_puts("ALARM TURNED ON!");
 							_delay_ms(2000);
 							STATE = BUZZER_ON;
 						}
+						// Reset values
 						pwLength = 0;
 						*inputPassword = '\0';
 						pressedKey = NULL;
 						break;
+					// Removes one character from the input password
 					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
 						inputPassword[pwLength] = NULL;
 						inputPassword[pwLength-1] = '\0';
@@ -266,31 +285,33 @@ int main(void)
 				}
 				break;
 			
-			case BUZZER_ON:		// ""  /  start the buzzer when the 10 second timer ran out
-						/* basically the same as state 2 (movement detected) but without the timer */
+			case BUZZER_ON:		// start the buzzer when the 10 second timer ran out
+				// Stops and resets timer
 				StopTimer1();
 				g_timer = 0;
 				
+				// Reset values
 				pwLength = 0;
 				*inputPassword = '\0';
 				pressedKey = NULL;
+				
 				printf("Type the password to disable the alarm ('#' enter, '*' backspace): \n\r");
 				lcd_clrscr();
 				lcd_puts("Enter password:");
 				while (1)
 				{
-					// user inputs the password on the keypad
-					/* USART_Transmit password */
-					
+					// user inputs the password on the keypad					
 					pressedKey = KEYPAD_GetKey();
 					pwLength = strlen(inputPassword);
+					
+					// Press ENTER to check the input password
 					if(pressedKey == ENTER) {
 						if(!strcmp(inputPassword, PASSWORD)) {
 							printf("Password correct!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
 							lcd_gotoxy(0,1);
-							lcd_puts("correct!");
+							lcd_puts("CORRECT!");
 							_delay_ms(2000);
 							STATE = ALARM_DISARMED;
 							pwLength = 0;
@@ -303,7 +324,7 @@ int main(void)
 							lcd_clrscr();
 							lcd_puts("Password");
 							lcd_gotoxy(0,1);
-							lcd_puts("incorrect!");
+							lcd_puts("INCORRECT!");
 							pwLength = 0;
 							*inputPassword = '\0';
 							pressedKey = NULL;
@@ -311,6 +332,7 @@ int main(void)
 							lcd_clrscr();
 							lcd_puts("Enter password:");
 						}
+					// Removes one character from the input password
 					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
 						inputPassword[pwLength] = NULL;
 						inputPassword[pwLength-1] = '\0';
@@ -327,17 +349,22 @@ int main(void)
 					lcd_puts(inputPassword);
 				}
 				break;
-			case ALARM_DISARMED:
+			case ALARM_DISARMED: // User has input the correct password
+				// Stops and resets timer
 				StopTimer1();
+				g_timer = 0;
+				
 				printf("Alarm has been disarmed.\n\r");
 				lcd_clrscr();
-				lcd_puts("Alarm disarmed");
+				lcd_puts("ALARM DISARMED!");
 				_delay_ms(2000);
+				
 				printf("Press %c to rearm. Press %c to exit.\n\r", REARM_BTN, EXIT_BTN);
 				lcd_clrscr();
-				lcd_puts("A to rearm.");
+				lcd_puts("'A' to rearm.");
 				lcd_gotoxy(0,1);
-				lcd_puts("B to exit.");
+				lcd_puts("'B' to exit.");
+				// Waits for user to rearm or exit.
 				while(1) {
 					pressedKey = KEYPAD_GetKey();
 					if(pressedKey == REARM_BTN) {
