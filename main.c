@@ -20,7 +20,7 @@
 #define ALARM_ARMED 1
 #define MOVEMENT_DETECTED 2
 #define BUZZER_ON 3
-#define REARM 4
+#define ALARM_DISARMED 4
 #define FAULT 0
 
 #define BUZZER_START_TIME 10 // Time when buzzer is turned on after detecting motion (seconds)
@@ -48,6 +48,8 @@ int g_timer = 0; // Used in ISR to count time after movement is detected.
 #include <ctype.h>
 #include "keypad/keypad.h"
 #include "keypad/delay.h"
+#include "LCD/lcd.h"
+
 // #include "keypad/stdutils.h"
 
 
@@ -91,7 +93,6 @@ void SetupTimer1() {
 	TCCR1B |= (1 << CS12) | (1 << CS10);
 	// Output Compare Match A Interrupt Enable
 	TIMSK1 |= (1 << OCIE1A);
-	sei();
 }
 
 void StopTimer1() {
@@ -104,16 +105,32 @@ ISR(TIMER1_COMPA_vect) {
 	g_timer++;
 	if(g_timer == BUZZER_START_TIME) {
 		printf("\r\nUNO has turned on the buzzer!\n\r");
+		lcd_clrscr();
+		lcd_puts("Time has run");
+		lcd_gotoxy(0,1);
+		lcd_puts("out.");
+		_delay_ms(2000);
+		lcd_clrscr();
+		lcd_puts("Enter password:");
 		StopTimer1();
 	}
 }
 
+void SetupLCD() {
+	EICRA |= (1 << ISC01);
+	EIMSK |= (1 << INT0);
+	SMCR |= (1 << SM1);
+	lcd_init(LCD_DISP_ON);
+	lcd_clrscr();
+}
+
 int main(void)
 {
-    /* FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
-    FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ); */
  
+	 sei(); //enable interrupts
  
+	 SetupLCD();
+	 
 	// initialize the UART with 9600 BAUD
 	USART_Init(MYUBRR);
     
@@ -153,13 +170,20 @@ int main(void)
 			case ALARM_ARMED:		 //  default when the system is started
 			
 				/* if motion sensor activates */
+				lcd_clrscr();
 				printf("DETECTING MOTION...\n\r");
+				lcd_puts("DETECTING");
+				lcd_gotoxy(0,1);
+				lcd_puts("MOTION...");
 				while(1)
 				{
 					motion_sensor_value = (PING & (1 << PG0));
 					_delay_ms(10);
 					if(motion_sensor_value) {
 						printf("\nMOTION DETECTED!\n\n\r");
+						lcd_clrscr();
+						lcd_puts("MOTION DETECTED");
+						_delay_ms(2000);
 						STATE = MOVEMENT_DETECTED;
 						break;		// goto "MOVEMENT_DETECTED"
 					}		
@@ -174,6 +198,8 @@ int main(void)
 				*inputPassword = '\0';
 				pressedKey = NULL;
 				printf("Type the password ('#' enter, '*' backspace): \n\r");
+				lcd_clrscr();
+				lcd_puts("Enter password:");
 				while (1)
 				{
 					// user inputs the password on the keypad
@@ -181,6 +207,8 @@ int main(void)
 					
 					pressedKey = KEYPAD_GetKey();
 					if(g_timer > BUZZER_START_TIME) {
+						lcd_clrscr();
+						lcd_puts("Enter password:");
 						STATE = BUZZER_ON;
 						break;
 					}
@@ -188,10 +216,20 @@ int main(void)
 					if(pressedKey == ENTER) {
 						if(!strcmp(inputPassword, PASSWORD)) {
 							printf("Password correct!\n\r");
-							STATE = REARM;
+							lcd_clrscr();
+							lcd_puts("Password");
+							lcd_gotoxy(0,1);
+							lcd_puts("correct!");
+							_delay_ms(2000);
+							STATE = ALARM_DISARMED;
 						} 
 						if (strcmp(inputPassword, PASSWORD)){
 							printf("Password incorrect!\n\r");
+							lcd_clrscr();
+							lcd_puts("Password");
+							lcd_gotoxy(0,1);
+							lcd_puts("incorrect!");
+							_delay_ms(2000);
 							STATE = BUZZER_ON;
 						}
 						pwLength = 0;
@@ -201,13 +239,17 @@ int main(void)
 					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
 						inputPassword[pwLength] = NULL;
 						inputPassword[pwLength-1] = '\0';
+						lcd_clrscr();
+						lcd_puts("Enter password:");
 					} else if ((pwLength < CORRECT_PW_LENGTH) && isdigit(pressedKey)) {
 						inputPassword[pwLength] = pressedKey;
 						inputPassword[pwLength+1] = '\0';					
 					} else {
 						continue;
 					}	
-					printf("%s\n\r", inputPassword);		
+					printf("%s\n\r", inputPassword);
+					lcd_gotoxy(0,1);
+					lcd_puts(inputPassword);		
 				}
 				break;
 			
@@ -219,6 +261,8 @@ int main(void)
 				*inputPassword = '\0';
 				pressedKey = NULL;
 				printf("Type the password to disable the alarm ('#' enter, '*' backspace): \n\r");
+				lcd_clrscr();
+				lcd_puts("Enter password:");
 				while (1)
 				{
 					// user inputs the password on the keypad
@@ -229,7 +273,12 @@ int main(void)
 					if(pressedKey == ENTER) {
 						if(!strcmp(inputPassword, PASSWORD)) {
 							printf("Password correct!\n\r");
-							STATE = REARM;
+							lcd_clrscr();
+							lcd_puts("Password");
+							lcd_gotoxy(0,1);
+							lcd_puts("correct!");
+							_delay_ms(2000);
+							STATE = ALARM_DISARMED;
 							pwLength = 0;
 							*inputPassword = '\0';
 							pressedKey = NULL;
@@ -237,10 +286,17 @@ int main(void)
 						}
 						if (strcmp(inputPassword, PASSWORD)) {
 							printf("Password incorrect!\n\r");
+							lcd_clrscr();
+							lcd_puts("Password");
+							lcd_gotoxy(0,1);
+							lcd_puts("incorrect!");
+							_delay_ms(2000);
 						}
 					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
 						inputPassword[pwLength] = NULL;
 						inputPassword[pwLength-1] = '\0';
+						lcd_clrscr();
+						lcd_puts("Enter password:");
 					} else if ((pwLength < CORRECT_PW_LENGTH) && isdigit(pressedKey)) {
 						inputPassword[pwLength] = pressedKey;
 						inputPassword[pwLength+1] = '\0';
@@ -248,25 +304,39 @@ int main(void)
 						continue;
 					}
 					printf("%s\n\r", inputPassword);
+					lcd_gotoxy(0,1);
+					lcd_puts(inputPassword);
 				}
 				break;
-			case REARM:
+			case ALARM_DISARMED:
 				StopTimer1();
 				printf("Alarm has been disarmed.\n\r");
+				lcd_clrscr();
+				lcd_puts("Alarm disarmed");
+				_delay_ms(2000);
 				printf("Press %c to rearm. Press %c to exit.\n\r", REARM_BTN, EXIT_BTN);
+				lcd_clrscr();
+				lcd_puts("A to rearm.");
+				lcd_gotoxy(0,1);
+				lcd_puts("B to exit.");
 				while(1) {
 					pressedKey = KEYPAD_GetKey();
 					if(pressedKey == REARM_BTN) {
 						printf("Rearmed.\n\r");
+						lcd_clrscr();
+						lcd_puts("Rearming...");
+						_delay_ms(2000);
 						STATE = ALARM_ARMED;
 						break;
 					} else if (pressedKey == EXIT_BTN) {
 						printf("Exiting...\n\r");
+						lcd_clrscr();
+						lcd_puts("Exiting...");
 						exit(0);
 					}
 				}
 				break;
-			case FAULT:
+			default:
 				printf("ERROR\n");
 				break;
 		}
