@@ -24,8 +24,7 @@
 #define FAULT 0
 
 #define BUZZER_START_TIME 10 // Time when buzzer is turned on after detecting motion (seconds)
-int global_timer = 0; // Used in ISR to count time after movement is detected.
-//int STATE = 1;         // start in IDLE state
+int g_timer = 0; // Used in ISR to count time after movement is detected.
 
 /* keypad defines */
 #define RowColDirection DDRB	// Data Direction Configuration for keypad
@@ -78,7 +77,7 @@ FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
 
 // Source: http://www.arduinoslovakia.eu/application/timer-calculator
-void StartTimer1() {
+void SetupTimer1() {
 	// Clear registers
 	TCCR1A = 0;
 	TCCR1B = 0;
@@ -95,10 +94,17 @@ void StartTimer1() {
 	sei();
 }
 
+void StopTimer1() {
+	// Clear prescaler bits to stop the timer
+	TCCR1B &= ~((1 << CS12) | (1 << CS10));
+	g_timer = 0;
+}
+
 ISR(TIMER1_COMPA_vect) {
-	global_timer++;
-	if(global_timer == BUZZER_START_TIME) {
+	g_timer++;
+	if(g_timer == BUZZER_START_TIME) {
 		printf("\r\nUNO has turned on the buzzer!\n\r");
+		StopTimer1();
 	}
 }
 
@@ -126,8 +132,7 @@ int main(void)
 	SPCR |= (1 << SPR0);	// set SPI clock rate to 1 MHz
 	        // start state machine in "alarm is armed" state
 	
-	char send_array[10];			// sending either "turnOnBuzz" or "turnOffBuz"
-	char receive_array[6];		// receiving either "pwOkay" or "pwWrng"	// NOTE: not receiving anything?
+
 	char inputPassword[20];
 	char pressedKey;
 	int pwLength = 0;
@@ -164,8 +169,7 @@ int main(void)
 				// NOTE: input password on master, send data to slave
 				// slave validates the password and sends the data back to master
 				// (password is hardcoded in slave e.g. 1234, slave compares the received value to the correct one)
-				StartTimer1();
-				global_timer = 0;
+				SetupTimer1();
 				pwLength = 0;
 				*inputPassword = '\0';
 				pressedKey = NULL;
@@ -176,7 +180,7 @@ int main(void)
 						/* USART_Transmit password */
 					
 					pressedKey = KEYPAD_GetKey();
-					if(global_timer > BUZZER_START_TIME) {
+					if(g_timer > BUZZER_START_TIME) {
 						STATE = BUZZER_ON;
 						break;
 					}
@@ -209,11 +213,12 @@ int main(void)
 			
 			case BUZZER_ON:		// ""  /  start the buzzer when the 10 second timer ran out
 						/* basically the same as state 2 (movement detected) but without the timer */
-				printf("\nState change to BUZZER_ON\n\r");
+				StopTimer1();
+
 				pwLength = 0;
 				*inputPassword = '\0';
 				pressedKey = NULL;
-				printf("Type the password ('#' enter, '*' backspace): \n\r");
+				printf("Type the password to disable the alarm ('#' enter, '*' backspace): \n\r");
 				while (1)
 				{
 					// user inputs the password on the keypad
@@ -246,6 +251,7 @@ int main(void)
 				}
 				break;
 			case REARM:
+				StopTimer1();
 				printf("Alarm has been disarmed.\n\r");
 				printf("Press %c to rearm. Press %c to exit.\n\r", REARM_BTN, EXIT_BTN);
 				while(1) {
