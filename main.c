@@ -98,7 +98,6 @@ void SetupTimer1() {
 void StopTimer1() {
 	// Clear prescaler bits to stop the timer
 	TCCR1B &= ~((1 << CS12) | (1 << CS10));
-	g_timer = 0;
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -110,6 +109,9 @@ ISR(TIMER1_COMPA_vect) {
 		lcd_gotoxy(0,1);
 		lcd_puts("out.");
 		_delay_ms(2000);
+		lcd_clrscr();
+		lcd_puts("Alarm turned on!");
+		_delay_ms(1000);
 		lcd_clrscr();
 		lcd_puts("Enter password:");
 		StopTimer1();
@@ -183,6 +185,16 @@ int main(void)
 						printf("\nMOTION DETECTED!\n\n\r");
 						lcd_clrscr();
 						lcd_puts("MOTION DETECTED");
+						_delay_ms(1500);
+						lcd_clrscr();
+						lcd_puts("Backspace = '*'");
+						lcd_gotoxy(0,1);
+						lcd_puts("Enter = '#'");
+						_delay_ms(3000);
+						lcd_clrscr();
+						lcd_puts("You have 10");
+						lcd_gotoxy(0,1);
+						lcd_puts("seconds.");
 						_delay_ms(2000);
 						STATE = MOVEMENT_DETECTED;
 						break;		// goto "MOVEMENT_DETECTED"
@@ -206,9 +218,7 @@ int main(void)
 						/* USART_Transmit password */
 					
 					pressedKey = KEYPAD_GetKey();
-					if(g_timer > BUZZER_START_TIME) {
-						lcd_clrscr();
-						lcd_puts("Enter password:");
+					if(g_timer >= BUZZER_START_TIME) {
 						STATE = BUZZER_ON;
 						break;
 					}
@@ -229,6 +239,9 @@ int main(void)
 							lcd_puts("Password");
 							lcd_gotoxy(0,1);
 							lcd_puts("incorrect!");
+							_delay_ms(2000);
+							lcd_clrscr();
+							lcd_puts("Alarm turned on!");
 							_delay_ms(2000);
 							STATE = BUZZER_ON;
 						}
@@ -256,7 +269,8 @@ int main(void)
 			case BUZZER_ON:		// ""  /  start the buzzer when the 10 second timer ran out
 						/* basically the same as state 2 (movement detected) but without the timer */
 				StopTimer1();
-
+				g_timer = 0;
+				
 				pwLength = 0;
 				*inputPassword = '\0';
 				pressedKey = NULL;
@@ -290,7 +304,12 @@ int main(void)
 							lcd_puts("Password");
 							lcd_gotoxy(0,1);
 							lcd_puts("incorrect!");
+							pwLength = 0;
+							*inputPassword = '\0';
+							pressedKey = NULL;
 							_delay_ms(2000);
+							lcd_clrscr();
+							lcd_puts("Enter password:");
 						}
 					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
 						inputPassword[pwLength] = NULL;
