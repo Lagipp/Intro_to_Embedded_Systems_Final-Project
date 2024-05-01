@@ -405,6 +405,7 @@ int main(void)
 						state = ALARM_ARMED;
 						break;
 					} else if (pressedKey == EXIT_BTN) {
+						sendMessageToSlave("EXIT");
 						printf("Exiting...\n\r");
 						lcd_clrscr();
 						lcd_puts("Exiting...");

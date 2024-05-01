@@ -16,6 +16,7 @@
 #define MYUBRR (FOSC/16/BAUD-1)
 
 #include <string.h>
+#include <stdlib.h>
 #include <avr/io.h>
 #include <util/delay.h>
 #include <util/setbaud.h>
@@ -26,6 +27,7 @@
 /* STATE MACHINE VALUES */
 #define BUZZER_OFF 1
 #define BUZZER_ON 2
+#define EXIT 3
 
 #define STRING_LENGTH 20
 
@@ -170,6 +172,10 @@ main(void)
     while (1) 
     { 
 		receiveMessageFromMaster(spi_receive_data);
+		if (strstr(spi_receive_data,("EXIT")))
+		{
+			state = EXIT;
+		}
         switch(state) {
             case BUZZER_OFF:
                  _delay_ms(1000);
@@ -177,22 +183,29 @@ main(void)
                   if (strstr(spi_receive_data,("ON")))
                   {
                       // ATmega datasheet page 131 Table 16.1
-                      printf("Buzzer turning on\n");
+					  printf("Command: %s\n\r", spi_receive_data);
+                      printf("Buzzer turning on\n\r");
                       TCCR1A |= (1 << 6);
                       OCR1A = caltop(100, 1);
                        state = BUZZER_ON;
                   }
                   break;
             case BUZZER_ON:
-			// If message received is OFF, set buzzer off
-             if (strstr(spi_receive_data,("OFF")))
+				// If message received is OFF, set buzzer off
+				if (strstr(spi_receive_data,("OFF")))
                    {
                        // ATmega datasheet page 131 Table 16.1 
                        TCCR1A &= ~(1 << 6);
-                       printf("Buzzer turning off\n");
+					   printf("Command: %s\n\r", spi_receive_data);
+                       printf("Buzzer turning off\n\r");
                        state = BUZZER_OFF;
                    }
                    break;
+			case EXIT:
+				printf("Command: %s\n\r", spi_receive_data);
+				printf("Exiting...\n\r");
+				exit(0);
+				break;
 			default:
 				printf("ERROR\n");
 				break;
