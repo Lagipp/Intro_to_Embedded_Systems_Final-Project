@@ -1,10 +1,11 @@
 /*
- * final_project_master.c
+ * final_project_master
+ * main.c 
  * 
  *		BL40A1812 Introduction to Embedded Systems
- *		final project - master side
+ *		final project - master
  *
- * Created: 3.4.2024 12.24.39
+ * Created: 4/2024
  * Author : Group 14
  */ 
 
@@ -196,11 +197,11 @@ int main(void)
 	_delay_ms(2000);
 	
 	// Start state machine in ALARM_ARMED state
-	int STATE = ALARM_ARMED; 
+	int state = ALARM_ARMED; 
 	
 	while(1)
 	{	
-		switch(STATE)
+		switch(state)
 		{
 			case ALARM_ARMED:		 //  default when the system is started
 			
@@ -230,7 +231,7 @@ int main(void)
 						lcd_gotoxy(0,1);
 						lcd_puts("seconds.");
 						_delay_ms(2000);
-						STATE = MOVEMENT_DETECTED;
+						state = MOVEMENT_DETECTED;
 						break;		// goto "MOVEMENT_DETECTED"
 					}		
 				}	
@@ -256,7 +257,7 @@ int main(void)
 					
 					// If the timer has ran out
 					if(g_timer >= BUZZER_START_TIME) {
-						STATE = BUZZER_ON;
+						state = BUZZER_ON;
 						break;
 					}
 					pwLength = strlen(inputPassword);
@@ -271,7 +272,7 @@ int main(void)
 							lcd_gotoxy(0,1);
 							lcd_puts("CORRECT!");
 							_delay_ms(2000);
-							STATE = ALARM_DISARMED;
+							state = ALARM_DISARMED;
 						} 
 						if (strcmp(inputPassword, PASSWORD)){							
 							stopTimer1();
@@ -284,7 +285,7 @@ int main(void)
 							lcd_clrscr();
 							lcd_puts("ALARM TURNED ON!");
 							_delay_ms(500);
-							STATE = BUZZER_ON;
+							state = BUZZER_ON;
 						}
 						// Reset values
 						pwLength = 0;
@@ -340,7 +341,7 @@ int main(void)
 							lcd_gotoxy(0,1);
 							lcd_puts("CORRECT!");
 							_delay_ms(2000);
-							STATE = ALARM_DISARMED;
+							state = ALARM_DISARMED;
 							pwLength = 0;
 							*inputPassword = '\0';
 							pressedKey = '\0';
@@ -401,9 +402,10 @@ int main(void)
 						lcd_clrscr();
 						lcd_puts("Rearming...");
 						_delay_ms(2000);
-						STATE = ALARM_ARMED;
+						state = ALARM_ARMED;
 						break;
 					} else if (pressedKey == EXIT_BTN) {
+						sendMessageToSlave("EXIT");
 						printf("Exiting...\n\r");
 						lcd_clrscr();
 						lcd_puts("Exiting...");
