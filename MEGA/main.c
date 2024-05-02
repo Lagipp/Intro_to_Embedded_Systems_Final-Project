@@ -24,8 +24,11 @@
 #define ALARM_DISARMED 4
 #define FAULT 0
 
+#define CONNECTION_TIME_LIMIT 5
 #define BUZZER_START_TIME 10 // Time when buzzer is turned on after detecting motion (seconds)
 int g_timer = 0; // Used in ISR to count time after movement is detected.
+
+#define STRING_LENGTH 20
 
 /* keypad defines */
 #define RowColDirection DDRB	// Data Direction Configuration for keypad
@@ -107,11 +110,11 @@ void setupLCD() {
 }
 
 void sendMessageToSlave(char* message) {
-	char spi_send_data[20];
-	strcpy(spi_send_data, message);
-	/* send byte to slave */
+	char spi_send_data[STRING_LENGTH];
+	strcpy(spi_send_data, message);	
 	PORTB &= ~(1 << PB0); // SS LOW
-	for(int8_t spi_data_index = 0; spi_data_index < sizeof(spi_send_data); spi_data_index++)
+	
+	for(int8_t spi_data_index = 0; spi_data_index < STRING_LENGTH; spi_data_index++)
 	{
 		SPDR = spi_send_data[spi_data_index]; // send byte using SPI data register
 		_delay_ms(10);
@@ -143,8 +146,6 @@ ISR(TIMER1_COMPA_vect) {
 	}
 }
 
-
-
 int main(void)
 {
 	//Enable interrupts
@@ -172,7 +173,7 @@ int main(void)
 	
 	
 	// Password the user inputs
-	char inputPassword[20];
+	char inputPassword[STRING_LENGTH];
 	
 	// Keypad pressed key
 	char pressedKey;
@@ -184,9 +185,6 @@ int main(void)
 	DDRB &= ~(1 << PB7);
 	int8_t motion_sensor_value = 0;
 	
-
-	
-	
 	/* initialize the keypad */
 	KEYPAD_Init();
 	
@@ -194,7 +192,7 @@ int main(void)
 	lcd_puts("Starting");
 	lcd_gotoxy(0,1);
 	lcd_puts("application...");
-	_delay_ms(2000);
+	_delay_ms(1000);
 	
 	// Start state machine in ALARM_ARMED state
 	int state = ALARM_ARMED; 
@@ -409,7 +407,7 @@ int main(void)
 						printf("Exiting...\n\r");
 						lcd_clrscr();
 						lcd_puts("Exiting...");
-						exit(0);
+						return 0;
 					}
 				}
 				break;

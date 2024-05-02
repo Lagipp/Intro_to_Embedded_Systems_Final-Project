@@ -44,31 +44,6 @@ int caltop(int f, int n) // Counts top - page 128
     return ((f_cpu)/(2*n*f));
 }
 
-/*
-static void buzzerSong()
-{
-    TCCR1A |= (1 << 6);
-    // D3
-    OCR1A = caltop(100, 1);
-    _delay_ms(10000);
-    OCR1A = caltop(147, 1);
-    _delay_ms(10000);
-    printf("First delay");
-    _delay_ms(1000);
-    printf("Second delay");
-    
-    // C3 SHARP
-    printf("C3 sharp");
-    OCR1A = caltop(139, 1);
-
-    _delay_ms(1000);
-    // C3
-    OCR1A = caltop(130, 1);
-    _delay_ms(1000);
-    _delay_ms(10000);
-}
-*/
-
 static void
 USART_init(uint16_t ubrr) // unsigned int
 {
@@ -132,7 +107,7 @@ void receiveMessageFromMaster(char *string) {
 int 
 main(void)
 {
-
+	printf("UNO: Starting application...\n\n\r");
     int state = 1; 
     /* set MISO as output, pin 12 (PB4)*/
     DDRB  = (1 << PB4);
@@ -204,7 +179,7 @@ main(void)
 			case EXIT:
 				printf("Command: %s\n\r", spi_receive_data);
 				printf("Exiting...\n\r");
-				exit(0);
+				return 0;
 				break;
 			default:
 				printf("ERROR\n");
