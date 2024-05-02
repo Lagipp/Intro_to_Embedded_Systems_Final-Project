@@ -7,8 +7,10 @@
  *
  * Created: 4/2024
  * Author : Group 14
- * Some of the code used here were taken from week 7 for buzzer functionality and week 10 for SPI basic communication
  */ 
+
+/* Some of the code used here were taken from week 7 for buzzer functionality and week 10 for SPI basic communication */ 
+/* Code taken from different exercises through out the course unless stated otherwise */
 
 /* DEFINES COME FROM Ex. 9 */
 #define F_CPU 16000000UL
@@ -19,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <avr/io.h>
+#include <avr/sleep.h>
 #include <util/delay.h>
 #include <util/setbaud.h>
 #include <stdio.h>
@@ -90,6 +93,7 @@ USART_Receive(FILE *stream)
 FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
 
+// Receives message from the master
 void receiveMessageFromMaster(char *string) {
 	char spi_receive_data[STRING_LENGTH];
 	for(int8_t spi_data_index = 0; spi_data_index < STRING_LENGTH; spi_data_index++)
@@ -147,8 +151,9 @@ main(void)
 	
     while (1) 
     { 
+		// Waits for messages from the master and changes state based on the messages
 		receiveMessageFromMaster(spi_receive_data);
-		if (strstr(spi_receive_data,("EXIT")))
+		if (strstr(spi_receive_data,("SLEEP")))
 		{
 			state = EXIT;
 		}
@@ -169,18 +174,23 @@ main(void)
             case BUZZER_ON:
 				// If message received is OFF, set buzzer off
 				if (strstr(spi_receive_data,("OFF")))
-                   {
-                       // ATmega datasheet page 131 Table 16.1 
-                       TCCR1A &= ~(1 << 6);
-					   printf("Command: %s\n\r", spi_receive_data);
-                       printf("Buzzer turning off\n\r");
-                       state = BUZZER_OFF;
-                   }
-                   break;
+                {
+                    // ATmega datasheet page 131 Table 16.1 
+                    TCCR1A &= ~(1 << 6);
+					printf("Command: %s\n\r", spi_receive_data);
+                    printf("Buzzer turning off\n\r");
+                    state = BUZZER_OFF;
+                }
+                break;
 			case EXIT:
 				printf("Command: %s\n\r", spi_receive_data);
-				printf("Exiting...\n\r");
-				return 0;
+				printf("Sleep mode...\n\r");
+				// Sleep mode
+				SMCR |= (1 << SM1);
+				_delay_ms(100);
+				SMCR |= (1 << SE);
+				sleep_cpu();
+				// Requires system reset
 				break;
 			default:
 				printf("ERROR\n");

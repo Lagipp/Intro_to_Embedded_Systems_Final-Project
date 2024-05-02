@@ -9,7 +9,8 @@
  * Author : Group 14
  */ 
 
-
+ /* Code taken from different exercises through out the course unless stated otherwise */
+ 
 /* DEFINES COME FROM Ex. 9 */
 #define F_CPU 16000000UL
 #define BAUD 9600
@@ -34,8 +35,11 @@ int g_timer = 0; // Used in ISR to count time after movement is detected.
 #define ROW PORTB				// Lower four bits of PORTC are used as ROWs
 #define COL PINB				// Higher four bits of PORTC are used as COLs
 
+/* Password */
 #define PASSWORD "1234"
 #define CORRECT_PW_LENGTH strlen(PASSWORD)
+
+/* Buttons on the keypad */
 #define BACKSPACE '*'
 #define ENTER '#'
 #define REARM_BTN 'A'
@@ -49,6 +53,7 @@ int g_timer = 0; // Used in ISR to count time after movement is detected.
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <ctype.h>
+#include <avr/sleep.h>
 #include "keypad/keypad.h"
 #include "keypad/delay.h"
 #include "LCD/lcd.h"
@@ -108,6 +113,7 @@ void setupLCD() {
 	lcd_clrscr();
 }
 
+/* Sends message/command to slave (UNO) */
 void sendMessageToSlave(char* message) {
 	char spi_send_data[STRING_LENGTH];
 	strcpy(spi_send_data, message);	
@@ -117,15 +123,20 @@ void sendMessageToSlave(char* message) {
 	{
 		SPDR = spi_send_data[spi_data_index]; // send byte using SPI data register
 		_delay_ms(10);
-		while(!(SPSR & (1 << SPIF))){;}
+		while(!(SPSR & (1 << SPIF))){
+			/* wait until the transmission is complete */
+			;
+		}
 	}
 			
 	PORTB |= (1 << PB0); // SS HIGH	
 }
 
 ISR(TIMER1_COMPA_vect) {
+	// counts up the timer 1Hz
 	g_timer++;
-	if(g_timer == BUZZER_START_TIME) {
+	// if the timer hits the time limit, trigger the alarm
+	if(g_timer >= BUZZER_START_TIME) {
 		printf("\r\nUNO has turned on the buzzer!\n\r");
 		
 		lcd_clrscr();
@@ -153,8 +164,6 @@ int main(void)
 	// Setting up LCD
 	setupLCD();
 	 
-	
-    
 	// Redirect the stdin and stdout to UART functions
     stdout = &uart_output;
     stdin = &uart_input;
@@ -168,8 +177,6 @@ int main(void)
 	
 	// Initialize the UART with 9600 BAUD
 	USART_Init(MYUBRR);
-	
-	
 	
 	// Password the user inputs
 	char inputPassword[STRING_LENGTH];
@@ -213,6 +220,7 @@ int main(void)
 				{
 					motion_sensor_value = (PINB & (1 << PB7));
 					_delay_ms(10);
+					// If motion sensor value is 1 (motion detected)
 					if(motion_sensor_value) {
 						printf("\nMOTION DETECTED!\n\n\r");
 						lcd_clrscr();
@@ -252,7 +260,7 @@ int main(void)
 					// user inputs the password on the keypad					
 					pressedKey = KEYPAD_GetKey();
 					
-					// If the timer has ran out
+					// if the timer hits the time limit, change state to BUZZER_ON
 					if(g_timer >= BUZZER_START_TIME) {
 						state = BUZZER_ON;
 						break;
@@ -308,10 +316,12 @@ int main(void)
 				break;
 			
 			case BUZZER_ON:		// start the buzzer when the 10 second timer ran out
+			
 				// Stops and resets timer
 				stopTimer1();
 				g_timer = 0;
 				
+				// Tells the slave to turn on the buzzer
 				sendMessageToSlave("BZR_ON");
 
 				// Reset values
@@ -375,10 +385,12 @@ int main(void)
 				}
 				break;
 			case ALARM_DISARMED: // User has input the correct password
+			
 				// Stops and resets timer
 				stopTimer1();
 				g_timer = 0;
 				
+				// Tells the slave to turn off the buzzer
 				sendMessageToSlave("BZR_OFF");
 				
 				printf("Alarm has been disarmed.\n\r");
@@ -402,10 +414,17 @@ int main(void)
 						state = ALARM_ARMED;
 						break;
 					} else if (pressedKey == EXIT_BTN) {
-						sendMessageToSlave("EXIT");
-						printf("Exiting...\n\r");
+						sendMessageToSlave("SLEEP");
+						printf("Sleep mode...\n\r");
 						lcd_clrscr();
-						lcd_puts("Exiting...");
+						lcd_puts("Sleep mode...");
+						
+						// Sleep mode
+						SMCR |= (1 << SM1);
+						_delay_ms(100);
+						SMCR |= (1 << SE);
+						sleep_cpu();
+						// Requires system reset
 						return 0;
 					}
 				}
