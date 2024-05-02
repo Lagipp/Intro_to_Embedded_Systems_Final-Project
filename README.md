@@ -6,3 +6,5 @@ The system is a simplified model of an alarm system with a timer, motion sensor,
 
 If the user either enters the wrong password or the timer counts to 10, the alarm is activated, turning the buzzer on. The user is then once again instructed to enter the correct password, but this time with no timer nor a penalty for inputting the wrong password. Upon entering the correct password successfully, the alarm is disarmed, turning the buzzer off and prompting the user to either rearm the system or exit.
  The system also features an LCD screen to give the user instructions on what to do and notifications on what the system is currently doing.
+
+ The ATmega2560 (“Mega”) functions as the master and is responsible for most of the code and functionality for the entire system. The ATmega328p (“Uno”) is a slave, receiving instructions from the master (via SPI) on when to turn on and off the buzzer.
