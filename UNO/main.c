@@ -7,6 +7,7 @@
  *
  * Created: 4/2024
  * Author : Group 14
+ * Some of the code used here were taken from week 7 for buzzer functionality and week 10 for SPI basic communication
  */ 
 
 /* DEFINES COME FROM Ex. 9 */
