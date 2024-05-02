@@ -24,7 +24,6 @@
 #define ALARM_DISARMED 4
 #define FAULT 0
 
-#define CONNECTION_TIME_LIMIT 5
 #define BUZZER_START_TIME 10 // Time when buzzer is turned on after detecting motion (seconds)
 int g_timer = 0; // Used in ISR to count time after movement is detected.
 

@@ -108,7 +108,6 @@ void receiveMessageFromMaster(char *string) {
 int 
 main(void)
 {
-	printf("UNO: Starting application...\n\n\r");
     int state = 1; 
     /* set MISO as output, pin 12 (PB4)*/
     DDRB  = (1 << PB4);
@@ -144,7 +143,8 @@ main(void)
     stdin = &uart_input;
 	
     char spi_receive_data[STRING_LENGTH];
-    
+    printf("UNO: Starting application...\n\n\r");
+	
     while (1) 
     { 
 		receiveMessageFromMaster(spi_receive_data);
