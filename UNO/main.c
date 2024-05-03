@@ -33,7 +33,7 @@
 #define BUZZER_ON 2
 #define EXIT 3
 
-#define STRING_LENGTH 20
+#define STRING_LENGTH 20 // Character array length
 
 /* functions for the timer/counter1 compare match A interrupt vector */
 ISR
@@ -42,12 +42,14 @@ ISR
     TCNT1 = 0; // reset timer counter
 }
 
-int caltop(int f, int n) // Counts top - page 128
+int caltop(int f, int n) // Counts top - manual page 128 
 {
     long f_cpu = F_CPU;
     return ((f_cpu)/(2*n*f));
 }
 
+/* USART functions used for communication via USB
+Source: exercises */
 static void
 USART_init(uint16_t ubrr) // unsigned int
 {
@@ -94,7 +96,8 @@ FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
 
 // Receives message from the master
-void receiveMessageFromMaster(char *string) {
+void receive_message_from_master(char *string) 
+{
 	char spi_receive_data[STRING_LENGTH];
 	for(int8_t spi_data_index = 0; spi_data_index < STRING_LENGTH; spi_data_index++)
 	{
@@ -152,14 +155,13 @@ main(void)
     while (1) 
     { 
 		// Waits for messages from the master and changes state based on the messages
-		receiveMessageFromMaster(spi_receive_data);
+		receive_message_from_master(spi_receive_data);
 		if (strstr(spi_receive_data,("SLEEP")))
 		{
-			state = EXIT;
+			state = EXIT; // Change state to EXIT
 		}
         switch(state) {
-            case BUZZER_OFF:
-                 _delay_ms(1000);
+            case BUZZER_OFF: //Buzzer is turned off
 				 // If message received is ON, set buzzer on
                   if (strstr(spi_receive_data,("ON")))
                   {
@@ -168,10 +170,10 @@ main(void)
                       printf("Buzzer turning on\n\r");
                       TCCR1A |= (1 << 6);
                       OCR1A = caltop(100, 1);
-                       state = BUZZER_ON;
+                       state = BUZZER_ON; // Change state to BUZZER_ON
                   }
                   break;
-            case BUZZER_ON:
+            case BUZZER_ON: // Buzzer is turned on
 				// If message received is OFF, set buzzer off
 				if (strstr(spi_receive_data,("OFF")))
                 {
@@ -179,10 +181,10 @@ main(void)
                     TCCR1A &= ~(1 << 6);
 					printf("Command: %s\n\r", spi_receive_data);
                     printf("Buzzer turning off\n\r");
-                    state = BUZZER_OFF;
+                    state = BUZZER_OFF; // Change state to BUZZER_OFF
                 }
                 break;
-			case EXIT:
+			case EXIT: // Puts the Uno to sleep
 				printf("Command: %s\n\r", spi_receive_data);
 				printf("Sleep mode...\n\r");
 				// Sleep mode
@@ -193,7 +195,7 @@ main(void)
 				// Requires system reset
 				break;
 			default:
-				printf("ERROR\n");
+				printf("ERROR\n"); // Unknown state, should not go here
 				break;
         }
     }      

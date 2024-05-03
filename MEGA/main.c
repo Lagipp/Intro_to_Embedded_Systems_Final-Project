@@ -26,9 +26,9 @@
 #define FAULT 0
 
 #define BUZZER_START_TIME 10 // Time when buzzer is turned on after detecting motion (seconds)
-int g_timer = 0; // Used in ISR to count time after movement is detected.
+volatile int g_timer = 0; // Used in ISR to count time after movement is detected.
 
-#define STRING_LENGTH 20
+#define STRING_LENGTH 20 // Character array length
 
 /* keypad defines */
 #define RowColDirection DDRB	// Data Direction Configuration for keypad
@@ -36,7 +36,7 @@ int g_timer = 0; // Used in ISR to count time after movement is detected.
 #define COL PINB				// Higher four bits of PORTC are used as COLs
 
 /* Password */
-#define PASSWORD "1234"
+#define PASSWORD "1234" // password is hard coded e.g. 1234
 #define CORRECT_PW_LENGTH strlen(PASSWORD)
 
 /* Buttons on the keypad */
@@ -58,7 +58,8 @@ int g_timer = 0; // Used in ISR to count time after movement is detected.
 #include "keypad/delay.h"
 #include "LCD/lcd.h"
 
-
+/* USART functions used for communication via USB 
+Source: exercises */
 void USART_Init(unsigned int ubrr)
 {
 	UBRR0H = (unsigned char)(ubrr>>8);
@@ -79,12 +80,14 @@ unsigned char USART_Receive( FILE *stream )
 	return UDR0;
 }
 
-// Assign stdout and stdin as USART
+// Assign stdout and stdin as the USART functions
 FILE uart_output = FDEV_SETUP_STREAM(USART_Transmit, NULL, _FDEV_SETUP_WRITE);
 FILE uart_input = FDEV_SETUP_STREAM(NULL, USART_Receive, _FDEV_SETUP_READ);
 
 // Source: http://www.arduinoslovakia.eu/application/timer-calculator
-void setupTimer1() {
+/* Setups interrupt timer1 */
+void setup_timer1() 
+{
 	// Clear registers
 	TCCR1A = 0;
 	TCCR1B = 0;
@@ -100,12 +103,16 @@ void setupTimer1() {
 	TIMSK1 |= (1 << OCIE1A);
 }
 
-void stopTimer1() {
+/* Stops timer1 */
+void stop_timer1() 
+{
 	// Clear prescaler bits to stop the timer
 	TCCR1B &= ~((1 << CS12) | (1 << CS10));
 }
 
-void setupLCD() {
+/* Setups lcd */
+void setup_lcd() 
+{
 	EICRA |= (1 << ISC01);
 	EIMSK |= (1 << INT0);
 	SMCR |= (1 << SM1);
@@ -114,7 +121,8 @@ void setupLCD() {
 }
 
 /* Sends message/command to slave (UNO) */
-void sendMessageToSlave(char* message) {
+void send_message_to_slave(char* message) 
+{
 	char spi_send_data[STRING_LENGTH];
 	strcpy(spi_send_data, message);	
 	PORTB &= ~(1 << PB0); // SS LOW
@@ -123,7 +131,8 @@ void sendMessageToSlave(char* message) {
 	{
 		SPDR = spi_send_data[spi_data_index]; // send byte using SPI data register
 		_delay_ms(10);
-		while(!(SPSR & (1 << SPIF))){
+		while(!(SPSR & (1 << SPIF)))
+		{
 			/* wait until the transmission is complete */
 			;
 		}
@@ -132,11 +141,13 @@ void sendMessageToSlave(char* message) {
 	PORTB |= (1 << PB0); // SS HIGH	
 }
 
-ISR(TIMER1_COMPA_vect) {
+ISR(TIMER1_COMPA_vect) 
+{
 	// counts up the timer 1Hz
 	g_timer++;
 	// if the timer hits the time limit, trigger the alarm
-	if(g_timer >= BUZZER_START_TIME) {
+	if(g_timer == BUZZER_START_TIME) 
+	{
 		printf("\r\nUNO has turned on the buzzer!\n\r");
 		
 		lcd_clrscr();
@@ -147,12 +158,12 @@ ISR(TIMER1_COMPA_vect) {
 		
 		lcd_clrscr();
 		lcd_puts("ALARM TURNED ON!");
-		sendMessageToSlave("BZR_ON");
+		send_message_to_slave("BZR_ON");
 		_delay_ms(500);
 		
 		lcd_clrscr();
 		lcd_puts("Enter password:");
-		stopTimer1();
+		stop_timer1();
 	}
 }
 
@@ -162,7 +173,7 @@ int main(void)
 	sei(); 
 	
 	// Setting up LCD
-	setupLCD();
+	setup_lcd();
 	 
 	// Redirect the stdin and stdout to UART functions
     stdout = &uart_output;
@@ -221,7 +232,8 @@ int main(void)
 					motion_sensor_value = (PINB & (1 << PB7));
 					_delay_ms(10);
 					// If motion sensor value is 1 (motion detected)
-					if(motion_sensor_value) {
+					if(motion_sensor_value) 
+					{
 						printf("\nMOTION DETECTED!\n\n\r");
 						lcd_clrscr();
 						lcd_puts("MOTION DETECTED!");
@@ -242,10 +254,8 @@ int main(void)
 				}	
 				break;
 			case MOVEMENT_DETECTED:		// Motion sensor triggered
-				// password is hardcoded e.g. 1234
-				
 				// Starts timer
-				setupTimer1();
+				setup_timer1();
 				
 				// Resets values
 				pwLength = 0;
@@ -261,26 +271,30 @@ int main(void)
 					pressedKey = KEYPAD_GetKey();
 					
 					// if the timer hits the time limit, change state to BUZZER_ON
-					if(g_timer >= BUZZER_START_TIME) {
-						state = BUZZER_ON;
+					if(g_timer >= BUZZER_START_TIME) 
+					{
+						state = BUZZER_ON; // Change state to BUZZER_ON
 						break;
 					}
 					pwLength = strlen(inputPassword);
 					
 					// Press ENTER to check if password is correct
-					if(pressedKey == ENTER) {
-						if(!strcmp(inputPassword, PASSWORD)) {
-							stopTimer1();
+					if((pressedKey == ENTER) && (strcmp(inputPassword, ""))) 
+					{
+						if(!strcmp(inputPassword, PASSWORD)) 
+						{
+							stop_timer1();
 							printf("Password correct!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
 							lcd_gotoxy(0,1);
 							lcd_puts("CORRECT!");
 							_delay_ms(2000);
-							state = ALARM_DISARMED;
+							state = ALARM_DISARMED; // Change state to ALARM_DISARMED
 						} 
-						if (strcmp(inputPassword, PASSWORD)){							
-							stopTimer1();
+						if (strcmp(inputPassword, PASSWORD))
+						{							
+							stop_timer1();
 							printf("Password incorrect!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
@@ -290,24 +304,28 @@ int main(void)
 							lcd_clrscr();
 							lcd_puts("ALARM TURNED ON!");
 							_delay_ms(500);
-							state = BUZZER_ON;
+							state = BUZZER_ON; // Change state to BUZZER_ON
 						}
 						// Reset values
 						pwLength = 0;
 						*inputPassword = '\0';
 						pressedKey = '\0';
 						break;
-					// Removes one character from the input password
-					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
+					// Removes one character from the input password if there are characters
+					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) 
+					{
 						inputPassword[pwLength] = '\0';
 						inputPassword[pwLength-1] = '\0';
 						lcd_clrscr();
 						lcd_puts("Enter password:");
-					} else if ((pwLength < CORRECT_PW_LENGTH) && isdigit(pressedKey)) {
+					// Accepts only number as password inputs. If the user tries to put more than the password length amount of characters, they're not accepted.
+					} else if ((pwLength < CORRECT_PW_LENGTH) && isdigit(pressedKey)) 
+					{
 						inputPassword[pwLength] = pressedKey;
 						inputPassword[pwLength+1] = '\0';					
-					} else {
-						continue;
+					} else 
+					{
+						continue; // If any other button is pressed, uses 'continue' so the character won't be printed at the end
 					}	
 					printf("%s\n\r", inputPassword);
 					lcd_gotoxy(0,1);
@@ -318,11 +336,11 @@ int main(void)
 			case BUZZER_ON:		// start the buzzer when the 10 second timer ran out
 			
 				// Stops and resets timer
-				stopTimer1();
+				stop_timer1();
 				g_timer = 0;
 				
 				// Tells the slave to turn on the buzzer
-				sendMessageToSlave("BZR_ON");
+				send_message_to_slave("BZR_ON");
 
 				// Reset values
 				pwLength = 0;
@@ -339,22 +357,25 @@ int main(void)
 					pwLength = strlen(inputPassword);
 					
 					// Press ENTER to check the input password
-					if(pressedKey == ENTER) {
-						if(!strcmp(inputPassword, PASSWORD)) {
-							stopTimer1();
+					if((pressedKey == ENTER) && (strcmp(inputPassword, ""))) 
+					{
+						if(!strcmp(inputPassword, PASSWORD)) 
+						{
+							stop_timer1();
 							printf("Password correct!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
 							lcd_gotoxy(0,1);
 							lcd_puts("CORRECT!");
 							_delay_ms(2000);
-							state = ALARM_DISARMED;
+							state = ALARM_DISARMED; // Change state to ALARM_DISARMED
 							pwLength = 0;
 							*inputPassword = '\0';
 							pressedKey = '\0';
 							break;
 						}
-						if (strcmp(inputPassword, PASSWORD)) {
+						if (strcmp(inputPassword, PASSWORD)) 
+						{
 							printf("Password incorrect!\n\r");
 							lcd_clrscr();
 							lcd_puts("Password");
@@ -367,17 +388,21 @@ int main(void)
 							lcd_clrscr();
 							lcd_puts("Enter password:");
 						}
-					// Removes one character from the input password
-					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) {
+					// Removes one character from the input password if there are characters
+					} else if ((pressedKey == BACKSPACE) && (pwLength > 0)) 
+					{
 						inputPassword[pwLength] = '\0';
 						inputPassword[pwLength-1] = '\0';
 						lcd_clrscr();
 						lcd_puts("Enter password:");
-					} else if ((pwLength < CORRECT_PW_LENGTH) && isdigit(pressedKey)) {
+					// Accepts only number as password inputs. If the user tries to put more than the password length amount of characters, they're not accepted.
+					} else if ((pwLength < CORRECT_PW_LENGTH) && isdigit(pressedKey)) 
+					{
 						inputPassword[pwLength] = pressedKey;
 						inputPassword[pwLength+1] = '\0';
-					} else {
-						continue;
+					} else 
+					{
+						continue; // If any other button is pressed, uses 'continue' so the character won't be printed at the end
 					}
 					printf("%s\n\r", inputPassword);
 					lcd_gotoxy(0,1);
@@ -387,11 +412,11 @@ int main(void)
 			case ALARM_DISARMED: // User has input the correct password
 			
 				// Stops and resets timer
-				stopTimer1();
+				stop_timer1();
 				g_timer = 0;
 				
 				// Tells the slave to turn off the buzzer
-				sendMessageToSlave("BZR_OFF");
+				send_message_to_slave("BZR_OFF");
 				
 				printf("Alarm has been disarmed.\n\r");
 				lcd_clrscr();
@@ -406,15 +431,17 @@ int main(void)
 				// Waits for user to rearm or exit.
 				while(1) {
 					pressedKey = KEYPAD_GetKey();
-					if(pressedKey == REARM_BTN) {
+					if(pressedKey == REARM_BTN) 
+					{
 						printf("Rearmed.\n\r");
 						lcd_clrscr();
 						lcd_puts("Rearming...");
 						_delay_ms(2000);
-						state = ALARM_ARMED;
+						state = ALARM_ARMED; // Change state to ALARM_ARMED
 						break;
-					} else if (pressedKey == EXIT_BTN) {
-						sendMessageToSlave("SLEEP");
+					} else if (pressedKey == EXIT_BTN) 
+					{
+						send_message_to_slave("SLEEP");
 						printf("Sleep mode...\n\r");
 						lcd_clrscr();
 						lcd_puts("Sleep mode...");
@@ -425,12 +452,11 @@ int main(void)
 						SMCR |= (1 << SE);
 						sleep_cpu();
 						// Requires system reset
-						return 0;
 					}
 				}
 				break;
 			default:
-				printf("ERROR\n");
+				printf("ERROR\n"); // Unknown state, should not go here
 				break;
 		}
 	}
