@@ -200,7 +200,7 @@ int main(void)
 	
 	/* Motion sensor */
 	DDRB &= ~(1 << PB7);
-	int8_t motion_sensor_value = 0;
+	int8_t motionSensorValue = 0;
 	
 	/* initialize the keypad */
 	KEYPAD_Init();
@@ -219,7 +219,7 @@ int main(void)
 		switch(state)
 		{
 			case ALARM_ARMED:		 //  default when the system is started
-			
+				motionSensorValue = 0;
 				lcd_clrscr();
 				printf("DETECTING MOTION...\n\r");
 				lcd_puts("DETECTING");
@@ -229,10 +229,10 @@ int main(void)
 				// Detecting motion with the motion sensor
 				while(1)
 				{
-					motion_sensor_value = (PINB & (1 << PB7));
+					motionSensorValue = (PINB & (1 << PB7));
 					_delay_ms(10);
 					// If motion sensor value is 1 (motion detected)
-					if(motion_sensor_value) 
+					if(motionSensorValue) 
 					{
 						printf("\nMOTION DETECTED!\n\n\r");
 						lcd_clrscr();
